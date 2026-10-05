@@ -1,0 +1,28 @@
+{
+  "name": "shutter-flex",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Premium Photography Competition & Submission Platform with MongoDB Atlas and GridFS",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev": "node start-dev.js",
+    "start:backend": "cd backend && npm run dev",
+    "start:frontend": "cd frontend && npm run dev",
+    "seed": "cd backend && npm run seed"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.12.0",
+    "mongoose": "^8.9.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1"
+  },
+  "keywords": ["photography", "competition", "gridfs", "mongodb", "react", "express"],
+  "author": "Robinson Prabhu",
+  "license": "ISC"
+}
