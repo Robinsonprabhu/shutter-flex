@@ -26,8 +26,23 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
+// Ensure Database connection for serverless/Vercel request execution
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (dbErr) {
+    console.error('Database connection middleware error:', dbErr);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to connect to database.',
+      error: dbErr.message,
+    });
+  }
+});
+
 // Health Check
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.status(200).json({
     status: 'online',
     service: 'Shutter Flex API',
@@ -36,10 +51,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/participants', participantRoutes);
-app.use('/api/submissions', submissionRoutes);
-app.use('/api/admin', adminRoutes);
+// API Routes (support both /api/* and /* paths for Vercel service rewrites)
+app.use(['/api/participants', '/participants'], participantRoutes);
+app.use(['/api/submissions', '/submissions'], submissionRoutes);
+app.use(['/api/admin', '/admin'], adminRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

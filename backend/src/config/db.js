@@ -5,6 +5,15 @@ let gfsBucket = null;
 let mongoMemoryServerInstance = null;
 
 const connectDB = async () => {
+  if (mongoose.connection.readyState === 1) {
+    if (!gfsBucket && mongoose.connection.db) {
+      gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+        bucketName: 'photos',
+      });
+    }
+    return mongoose.connection;
+  }
+
   try {
     let uri = process.env.MONGODB_URI;
     const dbName = process.env.DATABASE_NAME || 'shutter_flex';
