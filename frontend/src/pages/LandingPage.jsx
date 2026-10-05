@@ -76,22 +76,53 @@ export const LandingPage = ({ setCurrentView }) => {
         position: 'relative',
         minHeight: '85vh',
         padding: '50px 0 80px 0',
-        backgroundImage: 'linear-gradient(rgba(250, 250, 248, 0.90), rgba(250, 250, 248, 0.94)), url("https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=1920&q=80")',
+        backgroundImage: 'linear-gradient(180deg, rgba(15, 23, 42, 0.55) 0%, rgba(15, 23, 42, 0.72) 100%), url("https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=2560&q=85")',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
       }}
     >
-      <div className="app-container" style={{ maxWidth: '580px' }}>
+      <div className="app-container" style={{ maxWidth: '580px', position: 'relative', zIndex: 1 }}>
         {/* Header Title */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>
+          <div
+            style={{
+              display: 'inline-block',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#FFFFFF',
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              marginBottom: '10px',
+              padding: '4px 14px',
+              backgroundColor: 'rgba(255, 255, 255, 0.18)',
+              borderRadius: '20px',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+            }}
+          >
             Shutter Flex 2026 • Annual Photography Salon
           </div>
-          <h1 style={{ fontSize: '30px', marginBottom: '8px', color: 'var(--text-primary)' }}>
+          <h1
+            style={{
+              fontSize: '32px',
+              marginBottom: '10px',
+              color: '#FFFFFF',
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              textShadow: '0 2px 12px rgba(0,0,0,0.5)',
+            }}
+          >
             Photography Competition
           </h1>
-          <p style={{ fontSize: '15px', color: 'var(--text-secondary)', margin: 0 }}>
+          <p
+            style={{
+              fontSize: '15px',
+              color: 'rgba(255, 255, 255, 0.92)',
+              margin: 0,
+              textShadow: '0 1px 6px rgba(0,0,0,0.4)',
+            }}
+          >
             On-spot contestant registration & photograph submission portal
           </p>
         </div>
@@ -100,10 +131,12 @@ export const LandingPage = ({ setCurrentView }) => {
         <div
           style={{
             display: 'flex',
-            backgroundColor: '#EBEBE6',
-            borderRadius: '6px',
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            borderRadius: '8px',
             padding: '4px',
             marginBottom: '16px',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
           }}
         >
           <button
@@ -114,17 +147,18 @@ export const LandingPage = ({ setCurrentView }) => {
             }}
             style={{
               flex: 1,
-              padding: '9px 12px',
-              borderRadius: '4px',
+              padding: '10px 12px',
+              borderRadius: '6px',
               fontSize: '14px',
               fontWeight: 600,
               backgroundColor: activeTab === 'register' ? '#FFFFFF' : 'transparent',
-              color: activeTab === 'register' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              boxShadow: activeTab === 'register' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              color: activeTab === 'register' ? '#0F172A' : '#FFFFFF',
+              boxShadow: activeTab === 'register' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
+              transition: 'all 0.2s ease',
             }}
           >
             <UserPlus size={15} /> On-Spot Registration
@@ -138,17 +172,18 @@ export const LandingPage = ({ setCurrentView }) => {
             }}
             style={{
               flex: 1,
-              padding: '9px 12px',
-              borderRadius: '4px',
+              padding: '10px 12px',
+              borderRadius: '6px',
               fontSize: '14px',
               fontWeight: 600,
               backgroundColor: activeTab === 'login' ? '#FFFFFF' : 'transparent',
-              color: activeTab === 'login' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              boxShadow: activeTab === 'login' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              color: activeTab === 'login' ? '#0F172A' : '#FFFFFF',
+              boxShadow: activeTab === 'login' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
+              transition: 'all 0.2s ease',
             }}
           >
             <UserCheck size={15} /> Already Registered? Sign In
@@ -157,8 +192,13 @@ export const LandingPage = ({ setCurrentView }) => {
 
         {/* Main Card Container */}
         <div
-          className="surface-card"
           style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.97)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.5)',
+            boxShadow: '0 20px 45px rgba(0, 0, 0, 0.3)',
             padding: '28px',
             marginBottom: '24px',
           }}
@@ -306,18 +346,23 @@ export const LandingPage = ({ setCurrentView }) => {
 
         {/* Quick Guidelines */}
         <div
-          className="surface-card"
           style={{
-            padding: '18px 22px',
+            backgroundColor: 'rgba(255, 255, 255, 0.94)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.4)',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
+            padding: '20px 24px',
             fontSize: '13px',
             color: 'var(--text-secondary)',
             lineHeight: 1.6,
           }}
         >
-          <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+          <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px', fontSize: '14px' }}>
             Contestant Instructions
           </div>
-          <ul style={{ paddingLeft: '18px', margin: 0 }}>
+          <ul style={{ paddingLeft: '18px', margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <li>No limit on participant count — all registered participants can submit entries.</li>
             <li>Make sure your full name is unique to prevent duplicate records.</li>
             <li>Supported formats: JPG, JPEG, PNG, WEBP (Max 15MB).</li>

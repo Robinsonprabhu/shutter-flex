@@ -38,26 +38,39 @@ export const AdminLogin = ({ setCurrentView }) => {
       style={{
         padding: '60px 0 80px 0',
         minHeight: '85vh',
-        backgroundImage: 'linear-gradient(rgba(250, 250, 248, 0.92), rgba(250, 250, 248, 0.95)), url("https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1920&q=80")',
+        backgroundImage: 'linear-gradient(180deg, rgba(15, 23, 42, 0.58) 0%, rgba(15, 23, 42, 0.75) 100%), url("https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=2560&q=85")',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
       }}
     >
-      <div className="app-container" style={{ maxWidth: '440px' }}>
+      <div className="app-container" style={{ maxWidth: '440px', position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <h1 style={{ fontSize: '24px', marginBottom: '6px' }}>Jury & Admin Portal</h1>
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+          <h1
+            style={{
+              fontSize: '28px',
+              marginBottom: '8px',
+              color: '#FFFFFF',
+              fontWeight: 800,
+              textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+            }}
+          >
+            Jury & Admin Portal
+          </h1>
+          <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.9)', margin: 0, textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
             Sign in to curate entries, score photographs, and select winners.
           </p>
         </div>
 
         <div
           style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid var(--border-color)',
-            borderRadius: '6px',
-            padding: '26px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+            backgroundColor: 'rgba(255, 255, 255, 0.97)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.5)',
+            boxShadow: '0 20px 45px rgba(0, 0, 0, 0.35)',
+            padding: '28px',
           }}
         >
           {errorMsg && (
