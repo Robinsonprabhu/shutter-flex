@@ -26,6 +26,14 @@ const connectDB = async () => {
       let uri = process.env.MONGODB_URI;
       const dbName = process.env.DATABASE_NAME || 'shutter_flex';
 
+      const connectionOptions = {
+        dbName: dbName,
+        maxPoolSize: 50,
+        minPoolSize: 5,
+        serverSelectionTimeoutMS: 2000,
+        socketTimeoutMS: 30000,
+      };
+
       if (!uri || uri.trim() === '') {
         if (!mongoMemoryServerInstance) {
           console.log('⚡ Starting local MongoDB Memory Server...');
@@ -38,10 +46,7 @@ const connectDB = async () => {
 
       let conn;
       try {
-        conn = await mongoose.connect(uri, {
-          dbName: dbName,
-          serverSelectionTimeoutMS: 1500, // Fast 1.5s timeout if Atlas is blocked/unreachable
-        });
+        conn = await mongoose.connect(uri, connectionOptions);
       } catch (atlasErr) {
         if (!mongoMemoryServerInstance) {
           console.warn('⚠️ Primary MongoDB connection unavailable. Spinning up In-Memory MongoDB Server for instant local access...');
@@ -49,11 +54,15 @@ const connectDB = async () => {
           const memUri = mongoMemoryServerInstance.getUri();
           conn = await mongoose.connect(memUri, {
             dbName: dbName,
+            maxPoolSize: 50,
+            minPoolSize: 5,
           });
         } else {
           const memUri = mongoMemoryServerInstance.getUri();
           conn = await mongoose.connect(memUri, {
             dbName: dbName,
+            maxPoolSize: 50,
+            minPoolSize: 5,
           });
         }
       }

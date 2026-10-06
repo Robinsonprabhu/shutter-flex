@@ -3,21 +3,44 @@ const Submission = require('../models/Submission');
 const Participant = require('../models/Participant');
 const { getGridFSBucket } = require('../config/db');
 
-// @desc    Get dashboard metrics & overview stats
+let adminStatsCache = { data: null, timestamp: 0 };
+const STATS_CACHE_TTL = 3000; // 3 seconds fast cache
+
+const invalidateStatsCache = () => {
+  adminStatsCache = { data: null, timestamp: 0 };
+};
+
+// @desc    Get dashboard metrics & overview stats with parallel aggregation
 // @route   GET /api/admin/stats
 // @access  Private (Admin)
 const getAdminStats = async (req, res) => {
   try {
-    const totalParticipants = await Participant.countDocuments({ isActive: true });
-    const totalSubmissions = await Submission.countDocuments();
-    const pendingSubmissions = await Submission.countDocuments({ status: 'pending' });
-    const shortlistedSubmissions = await Submission.countDocuments({ status: 'shortlisted' });
-    const rejectedSubmissions = await Submission.countDocuments({ status: 'rejected' });
-    const winnerSubmissions = await Submission.countDocuments({ isWinner: true });
+    const now = Date.now();
+    if (adminStatsCache.data && now - adminStatsCache.timestamp < STATS_CACHE_TTL) {
+      return res.status(200).json(adminStatsCache.data);
+    }
 
-    const currentWinner = await Submission.findOne({ isWinner: true }).lean();
+    const [
+      totalParticipants,
+      totalSubmissions,
+      pendingSubmissions,
+      shortlistedSubmissions,
+      rejectedSubmissions,
+      winnerSubmissions,
+      currentWinner,
+    ] = await Promise.all([
+      Participant.countDocuments({ isActive: true }),
+      Submission.countDocuments(),
+      Submission.countDocuments({ status: 'pending' }),
+      Submission.countDocuments({ status: 'shortlisted' }),
+      Submission.countDocuments({ status: 'rejected' }),
+      Submission.countDocuments({ isWinner: true }),
+      Submission.findOne({ isWinner: true })
+        .select('title participantName score')
+        .lean(),
+    ]);
 
-    return res.status(200).json({
+    const statsPayload = {
       success: true,
       stats: {
         totalParticipants,
@@ -37,7 +60,10 @@ const getAdminStats = async (req, res) => {
             }
           : null,
       },
-    });
+    };
+
+    adminStatsCache = { data: statsPayload, timestamp: now };
+    return res.status(200).json(statsPayload);
   } catch (error) {
     console.error('Admin Stats Error:', error);
     return res.status(500).json({
@@ -209,6 +235,7 @@ const updateSubmissionStatus = async (req, res) => {
     }
 
     await submission.save();
+    invalidateStatsCache();
 
     return res.status(200).json({
       success: true,
@@ -333,6 +360,7 @@ const setSubmissionWinner = async (req, res) => {
     }
 
     await submission.save();
+    invalidateStatsCache();
 
     return res.status(200).json({
       success: true,
@@ -498,6 +526,7 @@ const deleteSubmission = async (req, res) => {
     }
 
     await Submission.findByIdAndDelete(id);
+    invalidateStatsCache();
 
     return res.status(200).json({
       success: true,

@@ -1,5 +1,68 @@
 const API_BASE = '/api';
 
+// In-flight request deduplication and TTL-based client cache
+const requestCache = new Map();
+const inFlightRequests = new Map();
+
+const cachedFetch = async (url, options = {}, ttlMs = 4000) => {
+  const cacheKey = `${options.method || 'GET'}:${url}`;
+
+  // Check TTL cache for GET requests
+  if (!options.method || options.method === 'GET') {
+    const cached = requestCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < ttlMs) {
+      return cached.data;
+    }
+
+    // Check if duplicate request is already in-flight
+    if (inFlightRequests.has(cacheKey)) {
+      return inFlightRequests.get(cacheKey);
+    }
+  }
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(url, options);
+      const isJson = res.headers.get('content-type')?.includes('application/json');
+      const data = isJson ? await res.json() : null;
+
+      if (!res.ok) {
+        const errorMsg = data?.message || `HTTP Error ${res.status}: ${res.statusText}`;
+        const error = new Error(errorMsg);
+        error.status = res.status;
+        error.data = data;
+        throw error;
+      }
+
+      if (!options.method || options.method === 'GET') {
+        requestCache.set(cacheKey, { data, timestamp: Date.now() });
+      }
+
+      return data;
+    } finally {
+      inFlightRequests.delete(cacheKey);
+    }
+  })();
+
+  if (!options.method || options.method === 'GET') {
+    inFlightRequests.set(cacheKey, promise);
+  }
+
+  return promise;
+};
+
+export const clearApiCache = (pattern) => {
+  if (!pattern) {
+    requestCache.clear();
+    return;
+  }
+  for (const key of requestCache.keys()) {
+    if (key.includes(pattern)) {
+      requestCache.delete(key);
+    }
+  }
+};
+
 const getAuthHeaders = (isFormData = false) => {
   const headers = {};
   if (!isFormData) {
@@ -30,6 +93,7 @@ const handleResponse = async (response) => {
 export const api = {
   // Participant Auth & On-Spot Registration
   participantRegister: async (data) => {
+    clearApiCache();
     const res = await fetch(`${API_BASE}/participants/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -39,6 +103,7 @@ export const api = {
   },
 
   participantLogin: async (name) => {
+    clearApiCache();
     const res = await fetch(`${API_BASE}/participants/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -48,21 +113,20 @@ export const api = {
   },
 
   getParticipantMe: async () => {
-    const res = await fetch(`${API_BASE}/participants/me`, {
+    return cachedFetch(`${API_BASE}/participants/me`, {
       headers: getAuthHeaders(),
-    });
-    return handleResponse(res);
+    }, 10000);
   },
 
   // Participant Submissions
   getMySubmissions: async () => {
-    const res = await fetch(`${API_BASE}/submissions/my`, {
+    return cachedFetch(`${API_BASE}/submissions/my`, {
       headers: getAuthHeaders(),
-    });
-    return handleResponse(res);
+    }, 3000);
   },
 
   uploadSubmission: (formData, onProgress) => {
+    clearApiCache();
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${API_BASE}/submissions`);
@@ -85,6 +149,7 @@ export const api = {
         try {
           const data = JSON.parse(xhr.responseText);
           if (xhr.status >= 200 && xhr.status < 300) {
+            clearApiCache();
             resolve(data);
           } else {
             reject(new Error(data.message || `Upload failed with status ${xhr.status}`));
@@ -104,12 +169,12 @@ export const api = {
 
   // Public Exhibition
   getPublicExhibition: async () => {
-    const res = await fetch(`${API_BASE}/submissions/exhibition/public`);
-    return handleResponse(res);
+    return cachedFetch(`${API_BASE}/submissions/exhibition/public`, {}, 8000);
   },
 
   // Admin Auth
   adminLogin: async (email, password) => {
+    clearApiCache();
     const res = await fetch(`${API_BASE}/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -119,36 +184,34 @@ export const api = {
   },
 
   getAdminMe: async () => {
-    const res = await fetch(`${API_BASE}/admin/me`, {
+    return cachedFetch(`${API_BASE}/admin/me`, {
       headers: getAuthHeaders(),
-    });
-    return handleResponse(res);
+    }, 30000);
   },
 
   // Admin Stats & Submissions
-  getAdminStats: async () => {
-    const res = await fetch(`${API_BASE}/admin/stats`, {
+  getAdminStats: async (forceFresh = false) => {
+    if (forceFresh) clearApiCache('admin/stats');
+    return cachedFetch(`${API_BASE}/admin/stats`, {
       headers: getAuthHeaders(),
-    });
-    return handleResponse(res);
+    }, 2500);
   },
 
   getAdminSubmissions: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE}/admin/submissions?${query}`, {
+    return cachedFetch(`${API_BASE}/admin/submissions?${query}`, {
       headers: getAuthHeaders(),
-    });
-    return handleResponse(res);
+    }, 2000);
   },
 
   getAdminSubmissionById: async (id) => {
-    const res = await fetch(`${API_BASE}/admin/submissions/${id}`, {
+    return cachedFetch(`${API_BASE}/admin/submissions/${id}`, {
       headers: getAuthHeaders(),
-    });
-    return handleResponse(res);
+    }, 5000);
   },
 
   updateSubmissionStatus: async (id, status) => {
+    clearApiCache();
     const res = await fetch(`${API_BASE}/admin/submissions/${id}/status`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
@@ -158,6 +221,7 @@ export const api = {
   },
 
   updateSubmissionScore: async (id, score) => {
+    clearApiCache();
     const res = await fetch(`${API_BASE}/admin/submissions/${id}/score`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
@@ -167,6 +231,7 @@ export const api = {
   },
 
   updateSubmissionComment: async (id, judgeComment) => {
+    clearApiCache();
     const res = await fetch(`${API_BASE}/admin/submissions/${id}/comment`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
@@ -176,6 +241,7 @@ export const api = {
   },
 
   setSubmissionWinner: async (id, isWinner) => {
+    clearApiCache();
     const res = await fetch(`${API_BASE}/admin/submissions/${id}/winner`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
@@ -185,6 +251,7 @@ export const api = {
   },
 
   deleteSubmission: async (id) => {
+    clearApiCache();
     const res = await fetch(`${API_BASE}/admin/submissions/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
@@ -194,13 +261,13 @@ export const api = {
 
   // Admin Participants Management
   getAdminParticipants: async () => {
-    const res = await fetch(`${API_BASE}/admin/participants`, {
+    return cachedFetch(`${API_BASE}/admin/participants`, {
       headers: getAuthHeaders(),
-    });
-    return handleResponse(res);
+    }, 3000);
   },
 
   createAdminParticipant: async (participantData) => {
+    clearApiCache();
     const res = await fetch(`${API_BASE}/admin/participants`, {
       method: 'POST',
       headers: getAuthHeaders(),

@@ -4,6 +4,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const compression = require('compression');
+const mongoose = require('mongoose');
 const { connectDB } = require('./config/db');
 
 const participantRoutes = require('./routes/participantRoutes');
@@ -13,11 +15,20 @@ const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Enable HTTP response compression (Gzip/Brotli) for all payloads
+app.use(compression({
+  threshold: 1024, // Compress responses > 1KB
+  level: 6,
+}));
+
+// Performance & CORS Middleware
 app.use(cors({
-  origin: true, // Allow frontend origin
+  origin: true,
   credentials: true,
 }));
+
+// Disable x-powered-by for security and header size savings
+app.disable('x-powered-by');
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
@@ -26,19 +37,21 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Ensure Database connection for serverless/Vercel request execution
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (dbErr) {
-    console.error('Database connection middleware error:', dbErr);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to connect to database.',
-      error: dbErr.message,
-    });
+// Fast Database connection check (instant return if already connected)
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    return next();
   }
+  connectDB()
+    .then(() => next())
+    .catch((dbErr) => {
+      console.error('Database connection middleware error:', dbErr);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to connect to database.',
+        error: dbErr.message,
+      });
+    });
 });
 
 // Health Check

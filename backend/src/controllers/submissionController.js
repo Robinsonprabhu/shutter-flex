@@ -161,7 +161,16 @@ const getMySubmissions = async (req, res) => {
   }
 };
 
-// @desc    Stream photograph directly from GridFS
+// In-memory cache for photo file metadata & exhibition data to minimize DB round-trips
+const photoMetaCache = new Map();
+let exhibitionCache = { data: null, timestamp: 0 };
+const EXHIBITION_CACHE_TTL_MS = 15000; // 15 seconds
+
+const invalidateExhibitionCache = () => {
+  exhibitionCache = { data: null, timestamp: 0 };
+};
+
+// @desc    Stream photograph directly from GridFS with high-performance caching & ETags
 // @route   GET /api/submissions/:id/photo
 // @access  Public
 const getSubmissionPhoto = async (req, res) => {
@@ -175,40 +184,66 @@ const getSubmissionPhoto = async (req, res) => {
       });
     }
 
-    let photoFileId = null;
-    let mimeType = 'image/jpeg';
-    let originalFileName = 'photograph.jpg';
+    // Check fast metadata cache
+    let cachedMeta = photoMetaCache.get(id);
 
-    // Check if ID is a submission ID or direct GridFS photoFileId
-    const submission = await Submission.findById(id);
-    if (submission) {
-      photoFileId = submission.photoFileId;
-      mimeType = submission.mimeType || 'image/jpeg';
-      originalFileName = submission.originalFileName;
-    } else {
-      photoFileId = new mongoose.Types.ObjectId(id);
+    if (!cachedMeta) {
+      let photoFileId = null;
+      let mimeType = 'image/jpeg';
+      let originalFileName = 'photograph.jpg';
+
+      // Check if ID is a submission ID or direct GridFS photoFileId
+      const submission = await Submission.findById(id).select('photoFileId mimeType originalFileName').lean();
+      if (submission) {
+        photoFileId = submission.photoFileId;
+        mimeType = submission.mimeType || 'image/jpeg';
+        originalFileName = submission.originalFileName;
+      } else {
+        photoFileId = new mongoose.Types.ObjectId(id);
+      }
+
+      const bucket = getGridFSBucket();
+      const files = await bucket.find({ _id: new mongoose.Types.ObjectId(photoFileId) }).project({ contentType: 1, length: 1, filename: 1 }).toArray();
+
+      if (!files || files.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Photograph not found in archive.',
+        });
+      }
+
+      const fileMeta = files[0];
+      cachedMeta = {
+        photoFileId: photoFileId.toString(),
+        contentType: fileMeta.contentType || mimeType,
+        length: fileMeta.length,
+        filename: fileMeta.filename || originalFileName,
+        etag: `"${photoFileId}_${fileMeta.length}"`,
+      };
+
+      // Keep cache size bounded (max 500 items)
+      if (photoMetaCache.size > 500) {
+        const firstKey = photoMetaCache.keys().next().value;
+        photoMetaCache.delete(firstKey);
+      }
+      photoMetaCache.set(id, cachedMeta);
     }
+
+    // Check ETag for 304 Not Modified (instant client response, 0 byte transfer)
+    if (req.headers['if-none-match'] === cachedMeta.etag) {
+      return res.status(304).end();
+    }
+
+    res.setHeader('Content-Type', cachedMeta.contentType);
+    if (cachedMeta.length) {
+      res.setHeader('Content-Length', cachedMeta.length);
+    }
+    res.setHeader('ETag', cachedMeta.etag);
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.setHeader('Content-Disposition', `inline; filename="${cachedMeta.filename}"`);
 
     const bucket = getGridFSBucket();
-
-    // Check if file exists in GridFS files collection
-    const files = await bucket.find({ _id: new mongoose.Types.ObjectId(photoFileId) }).toArray();
-    if (!files || files.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Photograph not found in archive.',
-      });
-    }
-
-    const fileMeta = files[0];
-    const contentType = fileMeta.contentType || mimeType;
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', fileMeta.length);
-    res.setHeader('Cache-Control', 'public, max-age=604800, immutable'); // Cache 7 days
-    res.setHeader('Content-Disposition', `inline; filename="${fileMeta.filename || originalFileName}"`);
-
-    const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(photoFileId));
+    const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(cachedMeta.photoFileId));
 
     downloadStream.on('error', (error) => {
       console.error('GridFS Download Stream Error:', error);
@@ -232,19 +267,26 @@ const getSubmissionPhoto = async (req, res) => {
   }
 };
 
-// @desc    Get public winner and exhibition spotlight
+// @desc    Get public winner and exhibition spotlight with short in-memory cache
 // @route   GET /api/submissions/exhibition
 // @access  Public
 const getExhibitionSubmissions = async (req, res) => {
   try {
-    const winner = await Submission.findOne({ isWinner: true })
-      .select('-judgeComment') // Unless you want judge comment shown on exhibition
-      .lean();
+    const now = Date.now();
+    if (exhibitionCache.data && now - exhibitionCache.timestamp < EXHIBITION_CACHE_TTL_MS) {
+      return res.status(200).json(exhibitionCache.data);
+    }
 
-    const shortlisted = await Submission.find({ status: 'shortlisted', isWinner: { $ne: true } })
-      .sort({ score: -1, createdAt: -1 })
-      .limit(12)
-      .lean();
+    const [winner, shortlisted] = await Promise.all([
+      Submission.findOne({ isWinner: true })
+        .select('title caption participantName originalFileName createdAt score judgeComment')
+        .lean(),
+      Submission.find({ status: 'shortlisted', isWinner: { $ne: true } })
+        .select('title caption participantName createdAt score')
+        .sort({ score: -1, createdAt: -1 })
+        .limit(16)
+        .lean(),
+    ]);
 
     const winnerData = winner
       ? {
@@ -270,12 +312,15 @@ const getExhibitionSubmissions = async (req, res) => {
       photoUrl: `/api/submissions/${item._id}/photo`,
     }));
 
-    return res.status(200).json({
+    const responseData = {
       success: true,
       hasWinner: Boolean(winner),
       winner: winnerData,
       shortlisted: shortlistedData,
-    });
+    };
+
+    exhibitionCache = { data: responseData, timestamp: now };
+    return res.status(200).json(responseData);
   } catch (error) {
     console.error('Get Exhibition Error:', error);
     return res.status(500).json({

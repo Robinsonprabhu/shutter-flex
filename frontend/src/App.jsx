@@ -1,16 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Toast } from './components/Toast';
 import { UploadModal } from './components/UploadModal';
 
-import { LandingPage } from './pages/LandingPage';
-import { ParticipantDashboard } from './pages/ParticipantDashboard';
-import { AdminLogin } from './pages/AdminLogin';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { AdminParticipants } from './pages/AdminParticipants';
-import { WinnerExhibition } from './pages/WinnerExhibition';
+// Route-level code splitting to make initial load instant
+const LandingPage = lazy(() =>
+  import('./pages/LandingPage').then((m) => ({ default: m.LandingPage }))
+);
+const ParticipantDashboard = lazy(() =>
+  import('./pages/ParticipantDashboard').then((m) => ({ default: m.ParticipantDashboard }))
+);
+const AdminLogin = lazy(() =>
+  import('./pages/AdminLogin').then((m) => ({ default: m.AdminLogin }))
+);
+const AdminDashboard = lazy(() =>
+  import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard }))
+);
+const AdminParticipants = lazy(() =>
+  import('./pages/AdminParticipants').then((m) => ({ default: m.AdminParticipants }))
+);
+const WinnerExhibition = lazy(() =>
+  import('./pages/WinnerExhibition').then((m) => ({ default: m.WinnerExhibition }))
+);
+
+const ViewLoadingFallback = () => (
+  <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          width: '32px',
+          height: '32px',
+          border: '3px solid rgba(255,255,255,0.1)',
+          borderTopColor: '#d4af37',
+          borderRadius: '50%',
+          animation: 'spin 0.6s linear infinite',
+          margin: '0 auto 12px auto',
+        }}
+      />
+      <div style={{ fontSize: '13px', letterSpacing: '0.05em' }}>Loading...</div>
+    </div>
+  </div>
+);
 
 export const App = () => {
   const { user, loading } = useAuth();
@@ -91,7 +123,11 @@ export const App = () => {
         openUploadModal={() => setIsUploadModalOpen(true)}
       />
 
-      <main style={{ flex: 1 }}>{renderCurrentView()}</main>
+      <main style={{ flex: 1 }}>
+        <Suspense fallback={<ViewLoadingFallback />}>
+          {renderCurrentView()}
+        </Suspense>
+      </main>
 
       <Footer setCurrentView={setCurrentView} />
 

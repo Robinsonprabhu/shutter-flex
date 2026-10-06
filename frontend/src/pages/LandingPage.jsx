@@ -99,7 +99,7 @@ export const LandingPage = ({ setCurrentView }) => {
           justifyContent: 'center',
           padding: '40px 16px',
           backgroundImage:
-            'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.75) 100%), url("https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=2560&q=85")',
+            'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.75) 100%), url("https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=1280&q=65")',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundAttachment: 'fixed',
@@ -225,7 +225,7 @@ export const LandingPage = ({ setCurrentView }) => {
         minHeight: '85vh',
         padding: '50px 0 80px 0',
         backgroundImage:
-          'linear-gradient(180deg, rgba(15,23,42,0.55) 0%, rgba(15,23,42,0.72) 100%), url("https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=2560&q=85")',
+          'linear-gradient(180deg, rgba(15,23,42,0.55) 0%, rgba(15,23,42,0.72) 100%), url("https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=1280&q=65")',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
