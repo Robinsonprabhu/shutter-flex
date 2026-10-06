@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 
 let gfsBucket = null;
 let mongoMemoryServerInstance = null;
@@ -25,21 +24,29 @@ const connectDB = async () => {
     try {
       let uri = process.env.MONGODB_URI;
       const dbName = process.env.DATABASE_NAME || 'shutter_flex';
+      const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
       const connectionOptions = {
         dbName: dbName,
-        maxPoolSize: 50,
-        minPoolSize: 5,
-        serverSelectionTimeoutMS: 2000,
+        maxPoolSize: isServerless ? 10 : 50,
+        minPoolSize: 1,
+        serverSelectionTimeoutMS: 6000,
         socketTimeoutMS: 30000,
       };
 
       if (!uri || uri.trim() === '') {
-        if (!mongoMemoryServerInstance) {
-          console.log('⚡ Starting local MongoDB Memory Server...');
-          mongoMemoryServerInstance = await MongoMemoryServer.create();
+        if (!isServerless) {
+          try {
+            const { MongoMemoryServer } = require('mongodb-memory-server');
+            if (!mongoMemoryServerInstance) {
+              console.log('⚡ Starting local MongoDB Memory Server...');
+              mongoMemoryServerInstance = await MongoMemoryServer.create();
+            }
+            uri = mongoMemoryServerInstance.getUri();
+          } catch (memErr) {
+            console.warn('MongoMemoryServer not available:', memErr.message);
+          }
         }
-        uri = mongoMemoryServerInstance.getUri();
       } else {
         console.log(`Connecting to MongoDB database "${dbName}"...`);
       }
@@ -48,22 +55,30 @@ const connectDB = async () => {
       try {
         conn = await mongoose.connect(uri, connectionOptions);
       } catch (atlasErr) {
-        if (!mongoMemoryServerInstance) {
-          console.warn('⚠️ Primary MongoDB connection unavailable. Spinning up In-Memory MongoDB Server for instant local access...');
-          mongoMemoryServerInstance = await MongoMemoryServer.create();
-          const memUri = mongoMemoryServerInstance.getUri();
-          conn = await mongoose.connect(memUri, {
-            dbName: dbName,
-            maxPoolSize: 50,
-            minPoolSize: 5,
-          });
+        console.warn('⚠️ Primary MongoDB connection failed:', atlasErr.message);
+
+        // In local non-serverless dev, fallback to memory server if Atlas IP is blocked
+        if (!isServerless) {
+          try {
+            const { MongoMemoryServer } = require('mongodb-memory-server');
+            if (!mongoMemoryServerInstance) {
+              console.warn('Spinning up In-Memory MongoDB Server for local access...');
+              mongoMemoryServerInstance = await MongoMemoryServer.create();
+            }
+            const memUri = mongoMemoryServerInstance.getUri();
+            conn = await mongoose.connect(memUri, {
+              dbName: dbName,
+              maxPoolSize: 20,
+            });
+          } catch (fallbackErr) {
+            throw new Error(`MongoDB connection failed: ${atlasErr.message}`);
+          }
         } else {
-          const memUri = mongoMemoryServerInstance.getUri();
-          conn = await mongoose.connect(memUri, {
-            dbName: dbName,
-            maxPoolSize: 50,
-            minPoolSize: 5,
-          });
+          // On Vercel / serverless: Atlas is required.
+          throw new Error(
+            `MongoDB Atlas connection failed (${atlasErr.message}). ` +
+            'Please ensure IP 0.0.0.0/0 (Allow Access From Anywhere) is whitelisted in your MongoDB Atlas dashboard under Network Access.'
+          );
         }
       }
 
