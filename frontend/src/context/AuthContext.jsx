@@ -72,6 +72,51 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Combined register + upload in one step.
+   * Stores the JWT after registration, then immediately uploads the photo.
+   * Returns { success, data: { name, participantId, college, photoName } }
+   */
+  const registerAndUpload = async (participantData, photoFile, onProgress) => {
+    try {
+      // Step 1: register
+      const regRes = await api.participantRegister(participantData);
+      if (!regRes.success) {
+        return { success: false, message: regRes.message || 'Registration failed.' };
+      }
+
+      // Store token so the upload request is authenticated
+      localStorage.setItem('shutter_token', regRes.token);
+      localStorage.setItem('shutter_role', 'participant');
+      setUser({ role: 'participant', profile: regRes.participant });
+
+      // Step 2: upload photo
+      const formData = new FormData();
+      formData.append('photo', photoFile);
+      formData.append('title', photoFile.name.replace(/\.[^/.]+$/, ''));
+
+      try {
+        const uploadRes = await api.uploadSubmission(formData, onProgress);
+        showToast(`Welcome, ${regRes.participant.name}! Your photo has been submitted.`, 'success');
+        return {
+          success: true,
+          data: {
+            name: regRes.participant.name,
+            participantId: regRes.participant.participantId,
+            college: regRes.participant.college,
+            photoName: photoFile.name,
+          },
+        };
+      } catch (uploadErr) {
+        // Registration succeeded but upload failed — inform the user
+        showToast('Registered! But photo upload failed: ' + uploadErr.message, 'error');
+        return { success: false, message: 'Registration done, but photo upload failed: ' + uploadErr.message };
+      }
+    } catch (err) {
+      return { success: false, message: err.message || 'Registration failed.' };
+    }
+  };
+
   const loginParticipant = async (name) => {
     try {
       const res = await api.participantLogin(name);
@@ -119,6 +164,7 @@ export const AuthProvider = ({ children }) => {
         user,
         loading,
         registerParticipant,
+        registerAndUpload,
         loginParticipant,
         loginAdmin,
         logout,

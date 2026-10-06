@@ -69,7 +69,7 @@ export const Navbar = ({ currentView, setCurrentView, openUploadModal }) => {
               fontWeight: currentView === 'landing' ? 600 : 500,
             }}
           >
-            Register / Login
+            Submit Photo
           </button>
 
           <button
@@ -211,7 +211,7 @@ export const Navbar = ({ currentView, setCurrentView, openUploadModal }) => {
               fontWeight: currentView === 'landing' ? 600 : 500,
             }}
           >
-            Registration & Sign In
+            Submit Photo
           </button>
 
           <button

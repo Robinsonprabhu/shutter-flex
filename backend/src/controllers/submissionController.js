@@ -20,6 +20,15 @@ const createSubmission = async (req, res) => {
     const participantId = req.participant._id;
     const participantName = req.participant.name;
 
+    // Enforce 1-photo-per-participant rule
+    const existingCount = await Submission.countDocuments({ participantId: participantId });
+    if (existingCount >= 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already submitted a photograph. Only one entry per participant is allowed.',
+      });
+    }
+
     // Optional duplicate check: prevent uploading exact same filename on the same day
     const existingSubmission = await Submission.findOne({
       participantId: participantId,
