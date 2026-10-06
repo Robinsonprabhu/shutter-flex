@@ -3,8 +3,10 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 
 let gfsBucket = null;
 let mongoMemoryServerInstance = null;
+let isConnectingPromise = null;
 
 const connectDB = async () => {
+  // If already connected, ensure GridFS bucket is ready and return fast
   if (mongoose.connection.readyState === 1) {
     if (!gfsBucket && mongoose.connection.db) {
       gfsBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
@@ -14,56 +16,74 @@ const connectDB = async () => {
     return mongoose.connection;
   }
 
-  try {
-    let uri = process.env.MONGODB_URI;
-    const dbName = process.env.DATABASE_NAME || 'shutter_flex';
+  // If connection is in progress, await the existing promise
+  if (isConnectingPromise) {
+    return isConnectingPromise;
+  }
 
-    if (!uri || uri.trim() === '') {
-      console.log('⚡ No MONGODB_URI configured. Starting local MongoDB Memory Server for zero-friction development...');
-      mongoMemoryServerInstance = await MongoMemoryServer.create();
-      uri = mongoMemoryServerInstance.getUri();
-      console.log(`✅ In-Memory MongoDB Server running at: ${uri}`);
-    } else {
-      console.log(`Connecting to MongoDB Atlas database "${dbName}"...`);
-    }
+  isConnectingPromise = (async () => {
+    try {
+      let uri = process.env.MONGODB_URI;
+      const dbName = process.env.DATABASE_NAME || 'shutter_flex';
 
-    const conn = await mongoose.connect(uri, {
-      dbName: dbName,
-      serverSelectionTimeoutMS: 5000,
-    });
+      if (!uri || uri.trim() === '') {
+        if (!mongoMemoryServerInstance) {
+          console.log('⚡ Starting local MongoDB Memory Server...');
+          mongoMemoryServerInstance = await MongoMemoryServer.create();
+        }
+        uri = mongoMemoryServerInstance.getUri();
+      } else {
+        console.log(`Connecting to MongoDB database "${dbName}"...`);
+      }
 
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-
-    // Initialize GridFS bucket
-    gfsBucket = new mongoose.mongo.GridFSBucket(conn.connection.db, {
-      bucketName: 'photos',
-    });
-    console.log('✅ GridFS Bucket ("photos") initialized successfully.');
-
-    return conn;
-  } catch (error) {
-    console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    // If Atlas connection failed and no fallback was running, fallback to memory server to ensure app remains usable
-    if (!mongoMemoryServerInstance) {
-      console.log('⚠️ Falling back to In-Memory MongoDB Server so the application can run offline/locally...');
+      let conn;
       try {
-        mongoMemoryServerInstance = await MongoMemoryServer.create();
-        const memUri = mongoMemoryServerInstance.getUri();
-        const conn = await mongoose.connect(memUri, {
-          dbName: process.env.DATABASE_NAME || 'shutter_flex',
+        conn = await mongoose.connect(uri, {
+          dbName: dbName,
+          serverSelectionTimeoutMS: 1500, // Fast 1.5s timeout if Atlas is blocked/unreachable
         });
+      } catch (atlasErr) {
+        if (!mongoMemoryServerInstance) {
+          console.warn('⚠️ Primary MongoDB connection unavailable. Spinning up In-Memory MongoDB Server for instant local access...');
+          mongoMemoryServerInstance = await MongoMemoryServer.create();
+          const memUri = mongoMemoryServerInstance.getUri();
+          conn = await mongoose.connect(memUri, {
+            dbName: dbName,
+          });
+        } else {
+          const memUri = mongoMemoryServerInstance.getUri();
+          conn = await mongoose.connect(memUri, {
+            dbName: dbName,
+          });
+        }
+      }
+
+      // Initialize GridFS bucket
+      if (conn && conn.connection && conn.connection.db) {
         gfsBucket = new mongoose.mongo.GridFSBucket(conn.connection.db, {
           bucketName: 'photos',
         });
-        console.log('✅ Fallback In-Memory MongoDB & GridFS successfully initialized.');
-        return conn;
-      } catch (memError) {
-        console.error('Fatal: Could not initialize fallback database:', memError);
-        process.exit(1);
       }
+
+      // Ensure Admin exists in database
+      const Admin = require('../models/Admin');
+      const adminCount = await Admin.countDocuments().catch(() => 0);
+      if (adminCount === 0) {
+        console.log('🌱 Fresh DB detected. Auto-seeding default admin & sample data...');
+        const { seedDatabase } = require('../utils/seed');
+        await seedDatabase().catch((e) => console.warn('Auto-seed note:', e.message));
+      }
+
+      return conn;
+    } catch (error) {
+      console.error(`❌ MongoDB Connection Failure: ${error.message}`);
+      throw error;
+    } finally {
+      isConnectingPromise = null;
     }
-    process.exit(1);
-  }
+  })();
+
+  return isConnectingPromise;
 };
 
 const getGridFSBucket = () => {
