@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { PhotoCard } from '../components/PhotoCard';
 import { StatusBadge } from '../components/StatusBadge';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, Lock, CheckCircle } from 'lucide-react';
 
 export const ParticipantDashboard = ({ openUploadModal }) => {
   const { user } = useAuth();
@@ -28,6 +28,8 @@ export const ParticipantDashboard = ({ openUploadModal }) => {
   useEffect(() => {
     fetchSubmissions();
   }, []);
+
+  const hasSubmitted = submissions.length >= 1;
 
   return (
     <div style={{ padding: '24px 0 60px 0' }}>
@@ -54,25 +56,44 @@ export const ParticipantDashboard = ({ openUploadModal }) => {
             }}
           >
             <div>
-              <h1 style={{ fontSize: '24px', margin: 0 }}>My Submissions</h1>
+              <h1 style={{ fontSize: '24px', margin: 0 }}>My Competition Entry</h1>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                 Contestant: <strong>{user?.profile?.name}</strong> {user?.profile?.college ? <span>• {user.profile.college}</span> : null} ({user?.profile?.participantId || 'Entrant'})
               </p>
             </div>
 
-            <button
-              onClick={openUploadModal}
-              className="btn-primary"
-              style={{ fontSize: '14px', padding: '10px 18px', width: 'auto' }}
-            >
-              <Upload size={16} /> Submit Photograph
-            </button>
+            {hasSubmitted ? (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '6px',
+                  color: '#166534',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                <CheckCircle size={15} color="#16a34a" /> Entry Locked (1/1 Photo Limit)
+              </div>
+            ) : (
+              <button
+                onClick={openUploadModal}
+                className="btn-primary"
+                style={{ fontSize: '14px', padding: '10px 18px', width: 'auto' }}
+              >
+                <Upload size={16} /> Submit Photograph
+              </button>
+            )}
           </div>
 
           {/* Submissions List */}
           {loading ? (
             <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-              Loading your submissions...
+              Loading your submission...
             </div>
           ) : submissions.length === 0 ? (
             <div
@@ -84,9 +105,9 @@ export const ParticipantDashboard = ({ openUploadModal }) => {
                 textAlign: 'center',
               }}
             >
-              <h3 style={{ fontSize: '16px', marginBottom: '6px' }}>No photographs submitted yet</h3>
+              <h3 style={{ fontSize: '16px', marginBottom: '6px' }}>No photograph submitted yet</h3>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                Upload your photograph to enter into the competition judging.
+                Upload your 1 allowed photograph entry into the competition.
               </p>
               <button onClick={openUploadModal} className="btn-primary">
                 Choose Photo

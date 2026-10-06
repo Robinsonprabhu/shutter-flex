@@ -68,8 +68,8 @@ const submissionSchema = new mongoose.Schema(
   }
 );
 
+submissionSchema.index({ participantId: 1 }, { unique: true });
 submissionSchema.index({ createdAt: -1 });
-submissionSchema.index({ participantId: 1, createdAt: -1 });
 submissionSchema.index({ status: 1, score: -1 });
 
 module.exports = mongoose.model('Submission', submissionSchema);

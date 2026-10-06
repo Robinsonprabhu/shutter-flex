@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { X, UploadCloud, AlertCircle } from 'lucide-react';
+import { compressImage } from '../utils/imageCompressor';
 
 export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
   const { showToast } = useAuth();
@@ -10,13 +11,14 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
   const fileInputRef = useRef(null);
 
   if (!isOpen) return null;
 
-  const validateAndSetFile = (file) => {
+  const validateAndSetFile = async (file) => {
     setErrorMsg('');
     if (!file) return;
 
@@ -26,19 +28,28 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
       return;
     }
 
-    const maxSize = 15 * 1024 * 1024; // 15MB
+    const maxSize = 25 * 1024 * 1024; // 25MB
     if (file.size > maxSize) {
-      setErrorMsg('Image size exceeds the 15MB limit.');
+      setErrorMsg('Image size exceeds 25MB limit.');
       return;
     }
 
-    setSelectedFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
+    setIsOptimizing(true);
+    try {
+      const optimized = await compressImage(file);
+      setSelectedFile(optimized);
+      const objectUrl = URL.createObjectURL(optimized);
+      setPreviewUrl(objectUrl);
 
-    if (!title) {
-      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
-      setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+      if (!title) {
+        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+        setTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+      }
+    } catch (e) {
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    } finally {
+      setIsOptimizing(false);
     }
   };
 
@@ -76,7 +87,7 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
         setUploadProgress(progress);
       });
 
-      showToast('Photograph uploaded successfully.', 'success');
+      showToast('Photograph uploaded successfully (1/1 Entry Recorded).', 'success');
       if (onSuccess) onSuccess(res.submission);
       onClose();
       handleReset();
@@ -101,8 +112,11 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '18px', margin: 0 }}>Upload Photograph</h3>
-          <button onClick={onClose} disabled={isUploading} style={{ color: 'var(--text-muted)' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', margin: 0 }}>Upload Photograph</h3>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Strict limit: 1 entry per participant</span>
+          </div>
+          <button onClick={onClose} disabled={isUploading || isOptimizing} style={{ color: 'var(--text-muted)' }}>
             <X size={18} />
           </button>
         </div>
@@ -126,14 +140,14 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit}>
           {!previewUrl ? (
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !isOptimizing && fileInputRef.current?.click()}
               style={{
                 border: '1px dashed var(--border-color)',
                 backgroundColor: 'var(--bg-secondary)',
                 borderRadius: '6px',
-                padding: '30px 16px',
+                padding: '28px 16px',
                 textAlign: 'center',
-                cursor: 'pointer',
+                cursor: isOptimizing ? 'not-allowed' : 'pointer',
                 marginBottom: '18px',
               }}
             >
@@ -143,13 +157,14 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleFileInput}
                 style={{ display: 'none' }}
+                disabled={isOptimizing}
               />
-              <UploadCloud size={24} color="var(--text-secondary)" style={{ margin: '0 auto 8px auto' }} />
-              <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                Choose a photo to upload
+              <UploadCloud size={24} color="#6366f1" style={{ margin: '0 auto 8px auto' }} />
+              <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                {isOptimizing ? 'Optimizing photo...' : 'Choose a photo to upload'}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                Accepted formats: JPG, JPEG, PNG, WEBP (Max 15MB)
+                JPG, JPEG, PNG, WEBP • Fast auto-compression enabled
               </div>
             </div>
           ) : (
@@ -157,10 +172,10 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
               <div
                 style={{
                   position: 'relative',
-                  backgroundColor: '#EBEBE6',
+                  backgroundColor: '#0f172a',
                   borderRadius: '4px',
                   overflow: 'hidden',
-                  maxHeight: '220px',
+                  maxHeight: '200px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -169,12 +184,12 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
                 <img
                   src={previewUrl}
                   alt="Preview"
-                  style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'contain' }}
+                  style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain' }}
                 />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {selectedFile?.name} ({(selectedFile?.size / (1024 * 1024)).toFixed(2)} MB)
+                <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>
+                  {selectedFile?.name} ({(selectedFile?.size / 1024).toFixed(0)} KB optimized)
                 </span>
                 <button
                   type="button"
@@ -223,7 +238,7 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
                 <span>{uploadProgress}%</span>
               </div>
               <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--bg-secondary)', borderRadius: '2px', overflow: 'hidden' }}>
-                <div style={{ width: `${uploadProgress}%`, height: '100%', backgroundColor: 'var(--accent-dark)' }} />
+                <div style={{ width: `${uploadProgress}%`, height: '100%', backgroundColor: 'var(--accent-dark)', transition: 'width 0.2s' }} />
               </div>
             </div>
           )}
@@ -232,17 +247,17 @@ export const UploadModal = ({ isOpen, onClose, onSuccess }) => {
             <button
               type="button"
               onClick={onClose}
-              disabled={isUploading}
+              disabled={isUploading || isOptimizing}
               className="btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isUploading || !selectedFile}
+              disabled={isUploading || isOptimizing || !selectedFile}
               className="btn-primary"
             >
-              {isUploading ? 'Uploading...' : 'Submit Photograph'}
+              {isUploading ? 'Uploading...' : 'Submit Entry (1/1 Limit)'}
             </button>
           </div>
         </form>
