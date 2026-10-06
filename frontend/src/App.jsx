@@ -50,16 +50,12 @@ export const App = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Sync view based on auth changes
+  // Sync admin view when authenticating on login page
   useEffect(() => {
-    if (!loading) {
-      if (user?.role === 'admin' && (currentView === 'landing' || currentView === 'admin-login')) {
-        setCurrentView('admin-dashboard');
-      } else if (user?.role === 'participant' && currentView === 'landing') {
-        setCurrentView('participant-dashboard');
-      }
+    if (!loading && user?.role === 'admin' && currentView === 'admin-login') {
+      setCurrentView('admin-dashboard');
     }
-  }, [user, loading]);
+  }, [user, loading, currentView]);
 
   const handleUploadSuccess = () => {
     setRefreshKey((k) => k + 1);

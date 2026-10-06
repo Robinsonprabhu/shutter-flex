@@ -1,76 +1,85 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Lock, ShieldCheck } from 'lucide-react';
 
 export const AdminLogin = ({ setCurrentView }) => {
   const { loginAdmin } = useAuth();
-  const [username, setUsername] = useState('shutterflex');
-  const [password, setPassword] = useState('aidex26');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleLogin = async (e) => {
     e?.preventDefault();
-    if (!username || !password) {
-      setErrorMsg('Please enter both administrator username/email and passkey.');
+    if (!username.trim() || !password) {
+      setErrorMsg('Please enter both administrator username and passkey.');
       return;
     }
 
     setIsSubmitting(true);
     setErrorMsg('');
 
-    const res = await loginAdmin(username, password);
+    const res = await loginAdmin(username.trim(), password);
     setIsSubmitting(false);
 
     if (res.success) {
       setCurrentView('admin-dashboard');
     } else {
-      setErrorMsg(res.message);
+      setErrorMsg(res.message || 'Authentication failed. Please check your credentials.');
     }
-  };
-
-  const handleFillDemo = () => {
-    setUsername('shutterflex');
-    setPassword('aidex26');
   };
 
   return (
     <div
       style={{
-        padding: '60px 0 80px 0',
+        padding: '50px 0 70px 0',
         minHeight: '85vh',
-        backgroundImage: 'linear-gradient(180deg, rgba(15, 23, 42, 0.58) 0%, rgba(15, 23, 42, 0.75) 100%), url("https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=2560&q=85")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
+        background: 'radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 60%, #020617 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      <div className="app-container" style={{ maxWidth: '440px', position: 'relative', zIndex: 1 }}>
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <h1
+      <div className="app-container" style={{ maxWidth: '420px', width: '100%', position: 'relative', zIndex: 1 }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div
             style={{
-              fontSize: '28px',
-              marginBottom: '8px',
-              color: '#FFFFFF',
-              fontWeight: 800,
-              textShadow: '0 2px 10px rgba(0,0,0,0.5)',
+              width: 48,
+              height: 48,
+              borderRadius: '12px',
+              backgroundColor: 'rgba(212, 175, 55, 0.15)',
+              border: '1px solid rgba(212, 175, 55, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px auto',
             }}
           >
-            Jury & Admin Portal
+            <ShieldCheck size={26} color="#d4af37" />
+          </div>
+          <h1
+            style={{
+              fontSize: '24px',
+              marginBottom: '6px',
+              color: '#FFFFFF',
+              fontWeight: 800,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Jury &amp; Admin Access
           </h1>
-          <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.9)', margin: 0, textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
-            Sign in to curate entries, score photographs, and select winners.
+          <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
+            Sign in to review submissions, assign scores, and award winners.
           </p>
         </div>
 
         <div
           style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.97)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
+            backgroundColor: '#FFFFFF',
             borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.5)',
-            boxShadow: '0 20px 45px rgba(0, 0, 0, 0.35)',
-            padding: '28px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 20px 45px rgba(0, 0, 0, 0.4)',
+            padding: '28px 24px',
           }}
         >
           {errorMsg && (
@@ -80,9 +89,10 @@ export const AdminLogin = ({ setCurrentView }) => {
                 border: '1px solid var(--status-rejected-border)',
                 color: 'var(--status-rejected)',
                 padding: '10px 12px',
-                borderRadius: '4px',
+                borderRadius: '6px',
                 fontSize: '13px',
                 marginBottom: '16px',
+                lineHeight: 1.4,
               }}
             >
               {errorMsg}
@@ -91,30 +101,34 @@ export const AdminLogin = ({ setCurrentView }) => {
 
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#1e293b' }}>
                 Admin Username or Email
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="shutterflex"
+                placeholder="Enter username or email"
+                autoComplete="username"
                 required
                 style={{ width: '100%' }}
+                disabled={isSubmitting}
               />
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#1e293b' }}>
                 Passkey
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="aidex26"
+                placeholder="Enter passkey"
+                autoComplete="current-password"
                 required
                 style={{ width: '100%' }}
+                disabled={isSubmitting}
               />
             </div>
 
@@ -122,21 +136,11 @@ export const AdminLogin = ({ setCurrentView }) => {
               type="submit"
               disabled={isSubmitting}
               className="btn-primary"
-              style={{ width: '100%', padding: '10px' }}
+              style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700 }}
             >
-              {isSubmitting ? 'Authenticating...' : 'Sign In as Admin'}
+              {isSubmitting ? 'Verifying credentials...' : 'Sign In as Judge'}
             </button>
           </form>
-
-          <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid var(--border-color)', textAlign: 'center' }}>
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              style={{ fontSize: '12px', color: 'var(--text-secondary)', textDecoration: 'underline' }}
-            >
-              Reset to credentials (shutterflex / aidex26)
-            </button>
-          </div>
         </div>
       </div>
     </div>
